@@ -1,5 +1,5 @@
 {
-	"shell_cmd": "fsc \"$file\"",
+	"shell_cmd": "fsharpc \"$file\"",
 	"file_regex": "^(...*?):([0-9]*)",
 	"selector": "source.fsharp"
 }
