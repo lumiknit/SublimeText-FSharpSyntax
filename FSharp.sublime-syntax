@@ -15,6 +15,8 @@ variables:
   name_dot: "{{name_dotc}}+"
   name_opc: "[^ \t\n\r\\[\\](){},;?'\"\\\\$`#]"
   name_op: "{{name_opc}}+"
+  let_like: '((let\s+rec)|(let!?)|and|member|override|use|default)(?!{{name_opc}})'
+  val_like: '(val|(abstract(\s+member)?))(?!{{name_opc}})'
 
 contexts:
   main:
@@ -25,14 +27,17 @@ contexts:
     - include: preprocessor
     - include: attribute
     - include: open
+    - include: namespace
     - include: module
     - include: comments
     - include: constants
     - include: group
+    - include: val
     - include: let
     - include: type
     - include: fun
-    - include: val
+    - include: exception
+    - include: interface
     - include: match
     - include: separator
     - include: keyword
@@ -50,7 +55,7 @@ contexts:
 
 #---- Let -----
   let:
-    - match: '((let\s+rec)|(let!?)|and|member|(use!?))(?!{{name_op}})'
+    - match: '{{let_like}}'
       scope: keyword.control.fsharp
       push:
         - match: '=(?!{{opc}})'
@@ -78,6 +83,13 @@ contexts:
     - match: '=(?!{{opc}})'
       scope: keyword.operator.fsharp
       pop: true
+    - match: 'with(?!{{name_dotc}})'
+      scope: keyword.control.fsharp
+      set:
+        - match: '=(?!{{opc}})'
+          scope: keyword.operator.fsharp
+          pop: true
+        - include: block
     - match: '\('
       scope: punctuation.section.parameter.begin.fsharp
       push:
@@ -94,7 +106,7 @@ contexts:
     - match: '{{name_dot}}'
       scope: variable.parameter.fsharp
   fun:
-    - match: 'fun(?!{{name}})'
+    - match: 'fun(?!{{name_dotc}})'
       scope: keyword.control.fun.fsharp
       push: fun-args
   fun-args:
@@ -119,7 +131,7 @@ contexts:
 
 #---- Type -----
   type:
-    - match: 'type(?!{{name_op}})'
+    - match: 'type(?!{{name_opc}})'
       scope: keyword.control.type.fsharp
       push:
         - match: '=(?!{{opc}})'
@@ -139,17 +151,40 @@ contexts:
         - match: "'{{name}}"
           scope: constant.language.type.fsharp
         - match: '{{name_dot}}'
-          scope: storage.type.fsharp
+          scope: entity.name.class.fsharp
+          set: type-named
+  type-named:
+    - match: '=(?!{{opc}})'
+      scope: keyword.operator.fsharp
+      set: type-list
+    - match: '\('
+      scope: punctuation.section.arguments.begin.fsharp
+      push:
+        - match: '\)'
+          scope: punctuation.section.arguments.end.fsharp
+          pop: true
+        - match: ','
+          scope: punctuation.separator.fsharp
+        - match: "{{name}}"
+          scope: variable.parameter.fsharp
   type-list:
     - meta_scope: meta.type-definition.fsharp
     - match: '\s*'
       scope: meta.whitespace.fsharp
     - include: annotation
-    - match: (?=(let!?|member|val))
+    - match: (?={{let_like}}|{{val_like}})
       pop: true
+    - match: 'delegate\s+of(?!{{name_dotc}})'
+      scope: keyword.control.delegate.fsharp
+      set: type-notation
     - match: 'class(?!{{name_dotc}})'
       scope: keyword.control.class.fsharp
       set: class
+    - match: 'inherit(?!{{name_dotc}})'
+      scope: keyword.control.inherit.fsharp
+      set: inherit
+    - match: (?=interface(?!{{name_dotc}}))
+      pop: true
     - match: '{'
       scope: punctuation.section.struct.begin.fsharp
       set: struct
@@ -158,7 +193,7 @@ contexts:
     - match: '{{name_dot}}'
       scope: entity.name.struct.fsharp
       set:
-        - match: '\s*(?=of(?!{{name}}))'
+        - match: '\s*(?=of(?!{{name_dotc}}))'
           set: type-of
         - match: '\s*$'
           scope: meta.whitespace.fsharp
@@ -169,7 +204,7 @@ contexts:
     - match: (?=.)
       pop: true
   type-of:
-    - match: 'of(?!{{name}})'
+    - match: 'of(?!{{name_dotc}})'
       scope: keyword.control.of.fsharp
       push: type-notation
     - match: '\s*$'
@@ -193,12 +228,14 @@ contexts:
       scope: punctuation.separator.fsharp
 
   class:
+    - meta_scope: meta.class.fsharp
     - match: 'end(?!{{name_dotc}})'
       scope: keyword.control.end.fsharp
       pop: true
     - include: class-new
     - include: block
   class-new:
+    - meta_scope: meta.class.fsharp
     - match: 'new(?!{{name_dotc}})'
       scope: keyword.other.new.fsharp
       push:
@@ -213,10 +250,26 @@ contexts:
           scope: punctuation.separator.fsharp
         - match: '{{name_dot}}'
           scope: variable.parameter.fsharp
+  inherit:
+    - meta_scope: meta.inherit.fsharp
+    - match: '{{name_dot}}'
+      scope: entity.name.class.fsharp
+    - match: '\('
+      scope: punctuation.section.parameter.begin.fsharp
+      set:
+        - match: '\)'
+          scope: punctuation.section.parameter.end.fsharp
+          pop: true
+        - match: ','
+          scope: punctuation.separator.fsharp
+        - match: '{{name_dot}}'
+          scope: entity.name.fsharp
+        - match: '(?!\s)'
+          pop: true
 
 #---- val -----
   val:
-    - match: val(?!{{name_dotc}})
+    - match: '{{val_like}}'
       scope: keyword.control.val.fsharp
       push:
         - match: ':'
@@ -229,19 +282,42 @@ contexts:
           pop: true
         - include: k_mutable
         - include: k_access
-        - match: '{{name_op}}'
+        - match: '{{name_dot}}'
           scope: entity.name.fsharp
-        
+
+#---- exception -----
+  exception:
+    - match: exception(?!{{name_dotc}})
+      scope: keyword.control.exception.fsharp
+      push:
+        - match: of(?!{{name_dotc}})
+          scope: keyword.other.of.fsharp
+          set: type-notation
+        - match: '{{name_op}}'
+          scope: entity.name.exception.fsharp
+
+#---- interface -----
+  interface:
+    - match: interface(?!{{name_dotc}})
+      scope: keyword.control.interface.fsharp
+      push:
+        - match: 'with(?!{{name_dotc}})'
+          scope: keyword.control.with.fsharp
+          pop: true
+        - include: block
 
 #---- Keyword -----
   keyword:
-    - match: '(not)(?!{{name}})'
+    - match: '(not)(?!{{name_dotc}})'
       scope: keyword.operator.fsharp
-    - match: '(abstract|as|assert|base|begin|class|default|delegate|do|done|downcase|downto|elif|else|end|exception|extern|finally|fixed|for|global|if|in|inherit|inline|interface|internal|lazy|match|mutable|namespace|new|of|or|override|private|public|return!?|select|static|struc|then|to|try|upcase|use|use!|void|when|while|with|yield!?)(?!{{name}})'
+    - match: '(abstract|as|assert|base|begin|class|default|delegate|do|done|downcase|downto|elif|else|end|exception|extern|finally|fixed|for|global|if|in|inherit|inline|interface|internal|lazy|match|mutable|namespace|new|of|or|override|private|public|return!?|select|static|struc|then|to|try|upcase|use|use!|void|when|while|with|yield!?)(?!{{name_dotc}})'
       scope: keyword.control.fsharp
 
 #---- Type Notation -----
   type-notation:
+    - match: 'with(?!{{name_dotc}})'
+      scope: keyword.control.with.fsharp
+      pop: true
     - include: type_expr
     - match: $
       pop: true
@@ -262,7 +338,7 @@ contexts:
     - match: "\'{{name}}"
       scope: constant.language.type.fsharp
     - match: '{{name_dot}}'
-      scope: storage.type.fsharp
+      scope: entity.name.class.fsharp
 
 #---- PreProcessor -----
   preprocessor:
@@ -310,10 +386,21 @@ contexts:
 
 #---- open ----
   open:
-    - match: 'open'
+    - match: 'open(?!{{name_dotc}})'
       scope: keyword.control.open.fsharp
       push:
-        - match: '{{name}}'
+        - match: '{{name_dotc}}'
+          scope: entity.name.namespace.fsharp
+          pop: true
+#---- namespace -----
+  namespace:
+    - match: 'namespace(?!{{name_dotc}})'
+      scope: keyword.control.namespace.fsharp
+      push:
+        - match: 'global(?!{{name_dotc}})'
+          scope: keyword.other.global.fsharp
+          pop: true
+        - match: '{{name_dotc}}'
           scope: entity.name.namespace.fsharp
           pop: true
 #---- module ----
@@ -424,6 +511,14 @@ contexts:
       scope: punctuation.section.monad.begin.fsharp
       push:
         - meta_scope: meta.section.monad.fsharp
+        - match: 'new(?!{{name_dotc}})'
+          scope: keyword.control.new.fsharp
+          push:
+            - meta_scope: meta.object.fsharp
+            - match: 'with(?!{{name_dotc}})'
+              scope: keyword.control.with.fsharp
+              pop: true
+            - include: block
         - match: '\}'
           scope: punctuation.section.monad.end.fsharp
           pop: true
