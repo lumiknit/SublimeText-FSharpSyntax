@@ -15,8 +15,9 @@ variables:
   name_dot: "{{name_dotc}}+"
   name_opc: "[^ \t\n\r\\[\\](){},;?'\"\\\\$`#]"
   name_op: "{{name_opc}}+"
-  let_like: '((let\s+rec)|(let!?)|and|member|override|use|default)(?!{{name_opc}})'
-  val_like: '(val|(abstract(\s+member)?))(?!{{name_opc}})'
+  let_like: '((let\s+rec)|(let!?)|and|member|override|use|default)(?!{{name_dotc}})'
+  val_like: '(val|(abstract(\s+member)?))(?!{{name_dotc}})'
+  type_like: '((type\s+rec)|(type))(?!{{name_dotc}})'
 
 contexts:
   main:
@@ -52,6 +53,12 @@ contexts:
   k_access:
     - match: '(public|private|internal)(?!{{name_dotc}})'
       scope: storage.modifier.fsharp
+  k_rec:
+    - match: '(rec)(?!{{name_dotc}})'
+      scope: keyword.other.fsharp
+  k_inline:
+    - match: '(inline)(?!{{name_dotc}})'
+      scope: keyword.other.fsharp
 
 #---- Let -----
   let:
@@ -71,6 +78,7 @@ contexts:
               scope: keyword.operator.fsharp
             - match: '{{name_op}}'
               scope: entity.name.function.fsharp
+        - include: k_inline
         - include: k_mutable
         - include: k_access
         - match: '{{name_dot}}'
@@ -140,7 +148,7 @@ contexts:
 
 #---- Type -----
   type:
-    - match: 'type(?!{{name_opc}})'
+    - match: '{{type_like}}'
       scope: keyword.control.type.fsharp
       push: type-in
   type-and:
