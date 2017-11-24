@@ -8,9 +8,9 @@
 	<key>settings</key>
 	<dict>
     <key>increaseIndentPattern</key>
-    <string>(.*([:!=^\-+/*%@&amp;|&lt;&gt;.~]+|(?&lt;![a-zA-Z_0-9.]))(function|struct|class|do|then|else|try|with|finally))|\|[^.:!=^\-+/*%@&amp;|&lt;&gt;.~].*)\s*$</string>
+    <string>(.*[:!=^\-+/*%@&amp;|&lt;&gt;.~]+|.*(?&lt;![a-zA-Z_0-9.])(function|begin|struct|class|do|then|else|try|with|finally))\s*$</string>
     <key>decreaseIndentPattern</key>
-    <string>((.*(?&lt;![a-zA-Z_0-9.])(end|else|elif)(?![a-zA-Z_0-9.]).*)|\s*(with|finally)\s*))$</string>
+    <string>(\s*(end|else|elif|with|finally)(?![a-zA-Z_0-9.]).*)$</string>
 	</dict>
 </dict>
 </plist>
